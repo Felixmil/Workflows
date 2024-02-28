@@ -34,7 +34,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup R Environment
-        uses: Open-Systems-Pharmacology/Workflows/.github/actions/setup-R-environment@main
+        uses: Felixmil/Workflows/.github/actions/setup-R-environment@test-from-fork
         with:
           install-pksim: ${{ inputs.install-pksim }}
           pksim-url: ${{ inputs.pksim-url }}

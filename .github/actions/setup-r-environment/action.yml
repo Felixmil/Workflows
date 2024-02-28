@@ -33,7 +33,7 @@ runs:
   steps:
     - name: Install PK-Sim
       if: ${{ inputs.install-pksim }}
-      uses: Open-Systems-Pharmacology/Workflows/.github/actions/install-PKSIM@main
+      uses: Felixmil/Workflows/.github/actions/install-PKSIM@test-from-fork
       with:
         pksim-url: ${{ inputs.pksim-url }}
 
@@ -47,7 +47,7 @@ runs:
         use-public-rspm: true
 
     - name: Install package dependencies
-      uses: Open-Systems-Pharmacology/Workflows/.github/actions/install-package-deps@main
+      uses: Felixmil/Workflows/.github/actions/install-package-deps@test-from-fork
       with:
         install-rClr: ${{ inputs.install-rclr }}
         rClr-version: ${{ inputs.rClr-version }}
