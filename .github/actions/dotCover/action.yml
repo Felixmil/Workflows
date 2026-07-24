@@ -23,11 +23,18 @@ runs:
         } else {
           dotnet test --no-build -c Debug --collect "Code Coverage;Format=cobertura" --results-directory coverage-results
         }
+        # The Microsoft Code Coverage collector writes the report to a machine/timestamp
+        # named file under a GUID subfolder (e.g. <machine>_<time>.cobertura.xml), which
+        # codecov's filename search does not match. Copy it to a stable path and hand it
+        # to codecov explicitly.
+        $report = Get-ChildItem coverage-results -Recurse -Filter *.cobertura.xml | Select-Object -First 1
+        if (-not $report) { Write-Error "No cobertura coverage report was produced by dotnet test"; exit 1 }
+        Copy-Item $report.FullName coverage-results/coverage.cobertura.xml -Force
       shell: powershell
 
     - uses: codecov/codecov-action@v5
       with:
         fail_ci_if_error: true
-        directory: ./coverage-results
+        files: ./coverage-results/coverage.cobertura.xml
         token: ${{ inputs.token }}
         verbose: true
