@@ -42,39 +42,40 @@ jobs:
           use-public-rspm: true
           extra-repositories: ${{ inputs.extra-repositories }}
 
-      # setup-r exports RENV_CONFIG_REPOS_OVERRIDE (public RSPM only), and renv
-      # then ignores every other repository. Packages that only exist on extra
-      # repositories (e.g. an R-universe) are reported as "not available". The
-      # R steps below drop the override so renv uses the repositories recorded
-      # in renv.lock, plus extra-repositories. Packages listed in the
-      # DESCRIPTION Remotes field are still installed from their remote.
+      # Both R steps below start with Sys.unsetenv("RENV_CONFIG_REPOS_OVERRIDE").
+      # setup-r sets this variable to public RSPM only, and renv then ignores
+      # every other repository, so packages that only exist on an extra
+      # repository (e.g. an R-universe) are "not available". Without it, renv
+      # uses the repositories in renv.lock. Packages in the DESCRIPTION Remotes
+      # field always come from their remote.
+
+      # Only for projects with renv/activate.R. That script installs the
+      # pinned renv when the R session starts, so renv is always available.
       - name: Upgrade renv
+        if: hashFiles('renv/activate.R') != ''
         shell: Rscript {0}
         run: |
           Sys.unsetenv("RENV_CONFIG_REPOS_OVERRIDE")
-          install.packages("renv")
-          # Updates the renv record in renv.lock and renv/activate.R when a
-          # newer renv is available. Projects without renv/activate.R do not
-          # load renv on startup, so leave them without one.
-          if (file.exists("renv/activate.R")) {
-            renv::upgrade(prompt = FALSE)
-          }
+          # When a newer renv is out, updates its version in renv.lock and
+          # renv/activate.R.
+          renv::upgrade(prompt = FALSE)
 
-      # A separate R session, so that the upgraded renv is the one loaded.
+      # A new R session, so that the upgraded renv is the one loaded.
       - name: Update project dependencies and snapshot lockfile
         shell: Rscript {0}
         env:
           EXTRA_REPOSITORIES: ${{ inputs.extra-repositories }}
         run: |
           Sys.unsetenv("RENV_CONFIG_REPOS_OVERRIDE")
-          # When the project loads, renv replaces the repos option with the
-          # repositories in renv.lock. Add the extra repositories missing from
-          # it, so dependencies that only exist there can be found.
-          extra <- strsplit(Sys.getenv("EXTRA_REPOSITORIES"), "[[:space:],]+")[[1]]
-          extra <- sub("/+$", "", extra[nzchar(extra)])
+          # Projects without renv/activate.R do not install renv on startup.
+          if (!requireNamespace("renv", quietly = TRUE)) install.packages("renv")
+
+          # Add the extra repositories that renv.lock does not list.
           repos <- getOption("repos")
-          extra <- setdiff(extra, sub("/+$", "", repos))
+          extra <- strsplit(Sys.getenv("EXTRA_REPOSITORIES"), "[[:space:],]+")[[1]]
+          extra <- setdiff(sub("/+$", "", extra[nzchar(extra)]), sub("/+$", "", repos))
           options(repos = c(repos, stats::setNames(extra, extra)))
+
           renv::install(prompt = FALSE, lock = TRUE)
 
       - name: Check if renv.lock or renv/activate.R changed
