@@ -46,22 +46,35 @@ jobs:
       # then ignores every other repository. Packages that only exist on extra
       # repositories (e.g. an R-universe) are reported as "not available". The
       # R steps below drop the override so renv uses the repositories recorded
-      # in renv.lock. Packages listed in the DESCRIPTION Remotes field are
-      # still installed from their remote.
+      # in renv.lock, plus extra-repositories. Packages listed in the
+      # DESCRIPTION Remotes field are still installed from their remote.
       - name: Upgrade renv
         shell: Rscript {0}
         run: |
           Sys.unsetenv("RENV_CONFIG_REPOS_OVERRIDE")
+          install.packages("renv")
           # Updates the renv record in renv.lock and renv/activate.R when a
-          # newer renv is available.
-          renv::upgrade(prompt = FALSE)
+          # newer renv is available. Projects without renv/activate.R do not
+          # load renv on startup, so leave them without one.
+          if (file.exists("renv/activate.R")) {
+            renv::upgrade(prompt = FALSE)
+          }
 
       # A separate R session, so that the upgraded renv is the one loaded.
       - name: Update project dependencies and snapshot lockfile
         shell: Rscript {0}
+        env:
+          EXTRA_REPOSITORIES: ${{ inputs.extra-repositories }}
         run: |
           Sys.unsetenv("RENV_CONFIG_REPOS_OVERRIDE")
-          install.packages("renv")
+          # When the project loads, renv replaces the repos option with the
+          # repositories in renv.lock. Add the extra repositories missing from
+          # it, so dependencies that only exist there can be found.
+          extra <- strsplit(Sys.getenv("EXTRA_REPOSITORIES"), "[[:space:],]+")[[1]]
+          extra <- sub("/+$", "", extra[nzchar(extra)])
+          repos <- getOption("repos")
+          extra <- setdiff(extra, sub("/+$", "", repos))
+          options(repos = c(repos, stats::setNames(extra, extra)))
           renv::install(prompt = FALSE, lock = TRUE)
 
       - name: Check if renv.lock or renv/activate.R changed
