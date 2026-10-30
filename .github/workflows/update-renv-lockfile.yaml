@@ -45,6 +45,13 @@ jobs:
       - name: Update project dependencies and snapshot lockfile
         shell: Rscript {0}
         run: |
+          # setup-r exports RENV_CONFIG_REPOS_OVERRIDE (public RSPM only), and
+          # renv::install() then ignores every other repository. Packages that
+          # only exist on extra repositories (e.g. an R-universe) are reported
+          # as "not available". Drop the override so renv uses the
+          # repositories recorded in renv.lock. Packages listed in the
+          # DESCRIPTION Remotes field are still installed from their remote.
+          Sys.unsetenv("RENV_CONFIG_REPOS_OVERRIDE")
           install.packages("renv")
           renv::install(prompt = FALSE, lock = TRUE)
 
